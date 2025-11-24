@@ -1,9 +1,14 @@
-# Intelligent Document Q&A System (Phase 1)
+# Intelligent Document Q&A System — Setup Guide
 
 A production-grade document question-answering system powered by NLP, OpenAI GPT-5-mini, and Upstash Vector DB. Upload PDFs, images, or Word documents and ask natural-language questions to get AI-generated answers with citations.
 
 **Course:** COMP 4750 — Natural Language Processing  
-**Phase:** Phase 1 (Core Pipeline & Foundation)
+**Status:** ✅ Phase 1 Complete | ✅ Phase 2 Complete
+
+> **📝 Note**: This guide covers both Phase 1 and Phase 2 setup.  
+> For Phase 2 technical details, see [PHASE2.md](./PHASE2.md)
+
+> ⚠️ **IMPORTANT**: This system does **NOT preserve document history**. All uploaded documents and indexes are automatically cleared when the backend restarts. You must re-upload documents after each restart. This is intentional to maintain clean state.
 
 ---
 
@@ -118,6 +123,63 @@ UNSTRUCTURED_API_URL=https://api.unstructured.io/general/v0/general
 ```
 
 Save and close the file.
+
+### 5. Phase 2 Setup (Optional but Recommended)
+
+Phase 2 adds hybrid retrieval (semantic + keywords), neural reranking, and multi-hop query planning.
+
+**Pure NLP approach** - no external databases required!
+
+#### 5a. Install Phase 2 Dependencies
+
+```bash
+cd backend
+source venv/bin/activate  # if not already activated
+
+# Install Phase 2 packages
+pip install -r requirements.txt
+
+# Download spaCy English model
+python -m spacy download en_core_web_sm
+```
+
+#### 5b. Run Phase 2 Setup Script (Optional)
+
+```bash
+cd backend
+python setup_phase2.py
+```
+
+This script verifies:
+- ✅ Python version (3.10+)
+- ✅ All dependencies installed
+- ✅ spaCy model downloaded
+- ✅ Environment variables set
+
+#### 5c. Add Phase 2 Environment Variables
+
+Add these to your `.env` file:
+
+```bash
+# Phase 2: Hybrid Retrieval Weights (Pure NLP: Dense + Keywords)
+DENSE_WEIGHT=0.7        # Semantic similarity (OpenAI embeddings)
+KEYWORD_WEIGHT=0.3      # Keyword overlap (YAKE extraction)
+
+# Phase 2: Neural Reranking
+RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
+RERANK_TOP_K=20         # Candidates before reranking
+FINAL_TOP_K=5           # Final results after reranking
+
+# Phase 2: Query Planner (spaCy)
+SPACY_MODEL=en_core_web_sm
+ENABLE_MULTI_HOP=true
+
+# Phase 2: YAKE Keyword Extraction
+YAKE_MAX_KEYWORDS=10
+YAKE_NGRAM_SIZE=3
+```
+
+**Note**: Phase 2 uses pure Python NLP components - no external databases required!
 
 ---
 
@@ -278,7 +340,7 @@ nextjs-fastapi/
 
 ## Known Limitations (Phase 1)
 
-- **No hybrid retrieval**: Only dense embeddings (BM25 + keywords in Phase 2)
+- **No hybrid retrieval**: Only dense embeddings (keywords + reranking in Phase 2)
 - **No reranking**: Simple cosine similarity (cross-encoder in Phase 2)
 - **No query planning**: Single-hop queries only (multi-hop in Phase 2)
 - **No confidence scoring**: No citation validation (Phase 3)
@@ -289,7 +351,7 @@ nextjs-fastapi/
 
 ## Next Steps (Phase 2)
 
-1. Hybrid retrieval: Add BM25 (Elasticsearch) + YAKE keywords
+1. Hybrid retrieval: Dense embeddings + YAKE keywords + Neural reranking
 2. Cross-encoder reranking: `ms-marco-MiniLM-L-6-v2`
 3. Query planner: spaCy dependency parsing, multi-hop orchestration
 4. Better chunking: Smart table detection, section hierarchy

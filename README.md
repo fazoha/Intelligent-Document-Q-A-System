@@ -6,7 +6,7 @@ A production-grade system for uploading documents (PDF, images, DOCX) and asking
 
 **Course:** COMP 4750 — Natural Language Processing (Final Year)  
 **Institution:** University  
-**Status:** ✅ Phase 1 Complete
+**Status:** ✅ Phase 1 Complete | ✅ Phase 2 Complete
 
 ---
 
@@ -41,9 +41,9 @@ may-project/
 
 ---
 
-## Features (Phase 1)
+## Features
 
-### Core Functionality
+### Phase 1 (Core Functionality) ✅
 - 📄 **Multi-format document support**: PDF, PNG/JPG, DOCX
 - 🧠 **Layout-aware parsing**: Uses Unstructured.io to preserve document structure
 - 🔍 **Semantic search**: Dense embeddings via OpenAI `text-embedding-3-large`
@@ -51,19 +51,31 @@ may-project/
 - 📊 **Citation transparency**: Every answer references specific document sections
 - ⚡ **Serverless vector DB**: Upstash Vector (no local infrastructure needed)
 
+### Phase 2 (Advanced NLP) ✅
+- 🔀 **Hybrid retrieval**: Combines dense embeddings (semantic) + YAKE keywords (lexical)
+- 🎯 **Neural reranking**: Cross-encoder model (`ms-marco-MiniLM-L-6-v2`) for precision
+- 🧩 **Multi-hop reasoning**: spaCy-powered query planning for complex questions
+- 📊 **Enhanced chunking**: Special handling for tables and section hierarchy
+- ⚖️ **Weighted score fusion**: Configurable weights for semantic/keyword signals
+- 🎓 **Pure NLP approach**: No external databases (Elasticsearch removed for simplicity)
+
 ### Technical Highlights
 - **Layout metadata preservation**: Bounding boxes, page numbers, block types (paragraph/table/heading)
-- **Intelligent chunking**: Up to 512 tokens per chunk with section awareness
-- **Real-time processing**: Document → Parse → Chunk → Embed → Index in ~10-15 seconds
+- **Intelligent chunking**: Up to 512 tokens per chunk with table isolation and section awareness
+- **Pure NLP retrieval**: Dense embeddings → YAKE keywords → Score Fusion → Neural Reranking
+- **Query understanding**: Dependency parsing and multi-hop detection with spaCy
+- **Real-time processing**: Document → Parse → Chunk → Embed → Index in vector store
 - **Modern UI**: Clean Next.js + Tailwind CSS interface
 - **API-first design**: FastAPI with auto-generated OpenAPI docs
+- **Session-based operation**: No document history or persistence (fresh state on each restart)
+- **Educational focus**: Pure NLP components, no external databases required
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
-- **Node.js** 18+ and **Python** 3.11+
+- **Node.js** 18+ and **Python** 3.10+
 - API keys from:
   - OpenAI (GPT-5-mini + embeddings)
   - Upstash Vector
@@ -72,34 +84,42 @@ may-project/
 ### Installation
 
 ```bash
-# 1. Install Python dependencies (backend)
+# 1. Clone and navigate to project
+cd document-qa-system-main
+
+# 2. Install Python dependencies (backend)
 cd backend
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cd ..
 
-# 2. Install Node.js dependencies (frontend)
+# 3. Download spaCy model
+python -m spacy download en_core_web_sm
+
+# 4. Configure environment variables
+cd ..
+cp env.example .env
+# Edit .env with your actual API keys
+
+# 5. Install Node.js dependencies (frontend)
 cd frontend
 npm install
 cd ..
 
-# 3. Configure environment variables
-cp env.example .env
-# Edit .env with your actual API keys
-
-# 4. Run backend (in one terminal)
+# 6. Run backend (in one terminal)
 cd backend
 source venv/bin/activate
 uvicorn index:app --reload --port 8000
 
-# 5. Run frontend (in another terminal)
+# 7. Run frontend (in another terminal)
 cd frontend
 npm run dev
 ```
 
 **Frontend:** http://localhost:3000  
 **Backend API Docs:** http://localhost:8000/api/docs
+
+⚠️ **IMPORTANT**: This system does **NOT preserve document history**. All uploaded documents and indexes are **automatically cleared** when the backend restarts. You must re-upload documents after each restart. This is intentional to maintain clean state and avoid stale data.
 
 📖 **Detailed setup guide:** See `docs/SETUP.md`
 
@@ -141,30 +161,35 @@ npm run dev
 
 ## Phase Roadmap
 
-### ✅ Phase 1 (Current)
+### ✅ Phase 1 (Complete)
 - Core pipeline: upload → parse → chunk → embed → query → answer
 - Layout-aware metadata preserved
 - Basic dense retrieval (cosine similarity)
 - GPT-5-mini answer generation with citations
+- Modern Next.js + Tailwind UI
 
-### 🔄 Phase 2 (Planned)
-- **Hybrid retrieval**: BM25 (Elasticsearch) + YAKE keywords
-- **Cross-encoder reranking**: `ms-marco-MiniLM-L-6-v2`
-- **Query planner**: Multi-hop reasoning with spaCy
-- **Better chunking**: Table extraction, section hierarchy
+### ✅ Phase 2 (Complete)
+- **Hybrid retrieval**: Dense embeddings (semantic) + YAKE keywords (lexical)
+- **Cross-encoder reranking**: `ms-marco-MiniLM-L-6-v2` for semantic precision
+- **Query planner**: Multi-hop reasoning with spaCy dependency parsing
+- **Enhanced chunking**: Table isolation, section hierarchy tracking
+- **Weighted score fusion**: Configurable semantic/keyword weights
+- **Pure NLP approach**: No external databases - all Python-based NLP components
 
 ### 🔮 Phase 3 (Future)
 - **Confidence scoring**: ROUGE-L citation overlap validation
-- **Extractive fallback**: Direct span highlighting
-- **Evaluation harness**: Automated benchmarking
-- **Production deployment**: Vercel + Railway
+- **Extractive fallback**: Direct span highlighting with DistilBERT
+- **Evaluation harness**: Automated benchmarking on DocVQA/Natural Questions
+- **Advanced query planning**: Coreference resolution for better multi-hop
+- **Production deployment**: Vercel + Railway with caching
 
 ---
 
 ## NLP Components (Academic Focus)
 
-This project demonstrates:
+This project demonstrates multiple NLP techniques:
 
+### Phase 1 Components
 1. **Layout-aware document parsing** (Unstructured.io + LayoutParser concepts)
 2. **Semantic chunking** with token counting (tiktoken)
 3. **Dense embeddings** for retrieval (OpenAI text-embedding-3-large)
@@ -172,19 +197,53 @@ This project demonstrates:
 5. **Retrieval-Augmented Generation (RAG)** architecture
 6. **Citation extraction** via regex pattern matching
 
-**Future phases add:**
-- Lexical retrieval (BM25, TF-IDF)
-- Neural reranking (cross-encoders)
-- Dependency parsing (spaCy) for query understanding
-- Coreference resolution for multi-hop queries
+### Phase 2 Components (Implemented)
+7. **Keyword extraction** (YAKE unsupervised algorithm)
+8. **Neural reranking** (cross-encoder transformer model)
+9. **Dependency parsing** (spaCy) for query understanding
+10. **Multi-hop reasoning** (clause detection and sequential retrieval)
+11. **Hybrid score fusion** (weighted combination of semantic + keyword signals)
+
+### Phase 3 Components (Planned)
+- Confidence scoring (ROUGE-L overlap)
+- Extractive QA fallback
+- Coreference resolution
+- Advanced query decomposition
+
+---
+
+## System Behavior & Limitations
+
+### No Document History
+
+⚠️ **This system operates in session-based mode**:
+
+- **Documents are NOT saved**: All uploaded documents are cleared when the backend restarts
+- **No history log**: There is no record of previously uploaded documents
+- **Fresh state**: Each backend start provides a clean slate with no prior data
+- **Re-upload required**: After restart, you must upload documents again to query them
+
+**Why this design?**
+- ✓ Avoids stale data and orphaned vectors in cloud storage
+- ✓ Ensures consistency between in-memory state and vector databases
+- ✓ Prevents confusion from test data accumulation
+- ✓ Clean development and testing experience
+
+**What this means for you:**
+1. Upload your documents each session
+2. Don't rely on documents persisting across restarts
+3. Use sample documents or keep your files handy for re-upload
+4. For production use, implement proper database persistence (future work)
 
 ---
 
 ## Documentation
 
+- **`docs/NO_HISTORY_DESIGN.md`**: ⚠️ **READ FIRST** - Why documents don't persist (intentional design)
+- **`docs/PHASE2.md`**: Complete Phase 2 technical documentation
+- **`docs/PHASE2_TESTING.md`**: Phase 2 testing procedures
+- **`docs/SETUP.md`**: Detailed setup guide for both phases
 - **`docs/phase1-prd.md`**: Comprehensive PRD with architecture, API specs, testing
-- **`nextjs-fastapi/README.md`**: Detailed installation and usage guide
-- **`nextjs-fastapi/TESTING.md`**: Manual testing procedures
 - **`project-proposal.md`**: Academic project proposal
 
 ---
@@ -203,5 +262,5 @@ Academic project for COMP 4750. All rights reserved.
 
 ---
 
-**Last Updated:** November 22, 2025  
-**Version:** 1.0.0 (Phase 1 Complete)
+**Last Updated:** November 24, 2025  
+**Version:** 2.0.0 (Phase 2 Complete)

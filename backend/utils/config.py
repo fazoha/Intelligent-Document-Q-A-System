@@ -45,6 +45,24 @@ class Config:
     # Retrieval parameters
     TOP_K_CHUNKS: int = 5
     
+    # Phase 2: Hybrid retrieval weights (Pure NLP: Dense + Keywords)
+    # Note: BM25 removed - using only dense embeddings + YAKE keywords
+    DENSE_WEIGHT: float = float(os.getenv("DENSE_WEIGHT", "0.7"))  # Semantic similarity (increased)
+    KEYWORD_WEIGHT: float = float(os.getenv("KEYWORD_WEIGHT", "0.3"))  # YAKE keyword overlap (increased)
+    
+    # Phase 2: Neural reranking
+    RERANK_MODEL: str = os.getenv("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+    RERANK_TOP_K: int = int(os.getenv("RERANK_TOP_K", "20"))  # Candidates before reranking
+    FINAL_TOP_K: int = int(os.getenv("FINAL_TOP_K", "5"))  # Final results after reranking
+    
+    # Phase 2: Query planner (spaCy)
+    SPACY_MODEL: str = os.getenv("SPACY_MODEL", "en_core_web_sm")
+    ENABLE_MULTI_HOP: bool = os.getenv("ENABLE_MULTI_HOP", "true").lower() == "true"
+    
+    # Phase 2: YAKE keyword extraction
+    YAKE_MAX_KEYWORDS: int = int(os.getenv("YAKE_MAX_KEYWORDS", "10"))
+    YAKE_NGRAM_SIZE: int = int(os.getenv("YAKE_NGRAM_SIZE", "3"))
+    
     @classmethod
     def validate(cls) -> None:
         """

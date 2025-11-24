@@ -116,9 +116,11 @@ async def _process_document_file(file_path: str, filename: str) -> Dict[str, Any
         chunk_texts = [chunk.text for chunk in chunks]
         embeddings = embedder.embed_batch(chunk_texts)
         
-        # Store in vector DB
+        # Store in vector DB (semantic embeddings)
         vector_store = UpstashVectorStore()
         vector_store.upsert_chunks(chunks, embeddings)
+        
+        logger.info(f"Successfully indexed {len(chunks)} chunks in vector store")
         
         # Update document status
         doc.status = "indexed"

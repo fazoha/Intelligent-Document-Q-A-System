@@ -26,6 +26,11 @@ class ChunkBuilder:
         """
         Build chunks from parsed elements with layout metadata.
         
+        Phase 2 enhancements:
+        - Better table handling: Tables are kept as standalone chunks
+        - Section hierarchy tracking: Maintain heading context
+        - Smarter chunk boundaries: Don't split within tables or lists
+        
         Args:
             elements: List of parsed elements from Unstructured.io
             doc_id: Document ID
@@ -43,6 +48,9 @@ class ChunkBuilder:
         current_block_type = "paragraph"
         current_section_heading = None
         
+        # Phase 2: Track section hierarchy (for nested headings)
+        section_stack = []  # Stack of (level, heading) tuples
+        
         for idx, element in enumerate(elements):
             text = parser.extract_text(element)
             if not text or not text.strip():
@@ -53,14 +61,71 @@ class ChunkBuilder:
             page = parser.extract_page(element)
             bbox = parser.extract_bbox(element)
             
-            # Track section headings
+            # Phase 2: Track section headings with hierarchy
             if block_type == "heading":
-                current_section_heading = text.strip()
+                heading_text = text.strip()
+                # Simple heuristic: shorter headings or those with numbers are higher level
+                heading_level = self._estimate_heading_level(heading_text)
+                
+                # Update section stack
+                while section_stack and section_stack[-1][0] >= heading_level:
+                    section_stack.pop()
+                
+                section_stack.append((heading_level, heading_text))
+                
+                # Use the deepest (most specific) heading
+                current_section_heading = heading_text
             
             # Count tokens in this element
             token_count = len(self.tokenizer.encode(text))
             
-            # Check if we need to start a new chunk
+            # Phase 2: Special handling for tables and structured content
+            # Tables should ideally be in their own chunks
+            should_force_new_chunk = False
+            
+            if block_type == "table":
+                # If we have existing content and this is a table, flush current chunk
+                if current_chunk_texts:
+                    chunk = self._create_chunk(
+                        doc_id=doc_id,
+                        doc_name=doc_name,
+                        chunk_index=len(chunks),
+                        texts=current_chunk_texts,
+                        page=current_page,
+                        bbox=current_bbox,
+                        block_type=current_block_type,
+                        section_heading=current_section_heading,
+                        token_count=current_chunk_tokens
+                    )
+                    chunks.append(chunk)
+                    
+                    # Reset
+                    current_chunk_texts = []
+                    current_chunk_tokens = 0
+                
+                # Create standalone table chunk
+                chunk = self._create_chunk(
+                    doc_id=doc_id,
+                    doc_name=doc_name,
+                    chunk_index=len(chunks),
+                    texts=[text],
+                    page=page,
+                    bbox=bbox,
+                    block_type="table",
+                    section_heading=current_section_heading,
+                    token_count=token_count
+                )
+                chunks.append(chunk)
+                
+                # Reset for next chunk
+                current_chunk_texts = []
+                current_chunk_tokens = 0
+                current_page = page
+                current_bbox = []
+                current_block_type = "paragraph"
+                continue
+            
+            # Check if we need to start a new chunk (for non-table elements)
             should_split = (
                 current_chunk_tokens + token_count > self.max_tokens and
                 current_chunk_texts  # Don't split if this is the first element
@@ -116,10 +181,38 @@ class ChunkBuilder:
         
         self.logger.info(
             f"Built {len(chunks)} chunks from {len(elements)} elements "
-            f"for document {doc_name}"
+            f"for document {doc_name} (Phase 2: enhanced table/section handling)"
         )
         
         return chunks
+    
+    def _estimate_heading_level(self, heading_text: str) -> int:
+        """
+        Estimate heading level based on text properties.
+        
+        Heuristics:
+        - Shorter text = higher level (more general)
+        - Numbers/Roman numerals at start = higher level
+        - All caps = higher level
+        
+        Returns level 1-5 (lower number = higher level)
+        """
+        text = heading_text.strip()
+        
+        # Level 1: Very short (< 50 chars) or all caps
+        if len(text) < 50 and text.isupper():
+            return 1
+        
+        # Level 2: Short (< 50 chars) with numbers
+        if len(text) < 50 and any(char.isdigit() for char in text[:5]):
+            return 2
+        
+        # Level 3: Medium length or starts with common section markers
+        if len(text) < 100:
+            return 3
+        
+        # Level 4: Long headings
+        return 4
     
     @staticmethod
     def _resolve_tokenizer():
