@@ -1,0 +1,16 @@
+# FastAPI backend dependencies
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart>=0.0.6
+
+# OpenAI for embeddings and GPT-5-mini
+openai>=1.0.0,<2.0.0
+
+# Upstash Vector DB client
+upstash-vector>=0.3.0
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0
+tiktoken>=0.5.0
+pypdf>=5.0.0

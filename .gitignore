@@ -1,0 +1,58 @@
+# Environment variables
+.env
+.env*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+backend/venv/
+
+# Temporary uploads
+temp_uploads/
+backend/temp_uploads/
+
+# Logs
+*.log
+logs/
+
+# Node.js
+node_modules/
+frontend/node_modules/
+
+# Next.js
+.next/
+out/
+frontend/.next/
+frontend/out/
+
+# Build artifacts
+build/
+dist/
+
+# OS
+.DS_Store
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing
+coverage/
+*.lcov
+
+# Misc
+.vercel
