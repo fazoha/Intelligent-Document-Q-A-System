@@ -13,6 +13,10 @@ from .reranker_service import CrossEncoderReranker
 from .hybrid_retriever import HybridRetriever
 from .query_planner import QueryPlanner
 
+# Phase 3 services (Confidence scoring and extractive fallback)
+from .confidence_service import ConfidenceScorer
+from .extractive_qa_service import ExtractiveQAService
+
 __all__ = [
     # Phase 1
     "UnstructuredParser",
@@ -25,5 +29,8 @@ __all__ = [
     "CrossEncoderReranker",
     "HybridRetriever",
     "QueryPlanner",
+    # Phase 3
+    "ConfidenceScorer",
+    "ExtractiveQAService",
 ]
 

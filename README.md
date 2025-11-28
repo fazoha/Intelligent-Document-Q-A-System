@@ -6,7 +6,7 @@ A production-grade system for uploading documents (PDF, images, DOCX) and asking
 
 **Course:** COMP 4750 — Natural Language Processing (Final Year)  
 **Institution:** University  
-**Status:** ✅ Phase 1 Complete | ✅ Phase 2 Complete
+**Status:** ✅ Phase 1 Complete | ✅ Phase 2 Complete | ✅ Phase 3 Complete
 
 ---
 
@@ -59,13 +59,22 @@ may-project/
 - ⚖️ **Weighted score fusion**: Configurable weights for semantic/keyword signals
 - 🎓 **Pure NLP approach**: No external databases (Elasticsearch removed for simplicity)
 
+### Phase 3 (Confidence & Evaluation) ✅
+- 🎯 **Confidence scoring**: ROUGE-L citation overlap validation with visual indicators
+- 🔄 **Extractive fallback**: DistilBERT span extraction for low-confidence answers
+- 📊 **Answer validation**: Automatic detection of weak/unsupported answers
+- 📈 **Evaluation harness**: Standard QA metrics (EM, F1, Recall@K, nDCG)
+- 🧪 **Benchmarking**: Ablation study framework for systematic testing
+- 🎨 **Enhanced UI**: Confidence meters and answer type indicators
+
 ### Technical Highlights
 - **Layout metadata preservation**: Bounding boxes, page numbers, block types (paragraph/table/heading)
 - **Intelligent chunking**: Up to 512 tokens per chunk with table isolation and section awareness
 - **Pure NLP retrieval**: Dense embeddings → YAKE keywords → Score Fusion → Neural Reranking
 - **Query understanding**: Dependency parsing and multi-hop detection with spaCy
+- **Confidence validation**: ROUGE-L scoring with extractive QA fallback
 - **Real-time processing**: Document → Parse → Chunk → Embed → Index in vector store
-- **Modern UI**: Clean Next.js + Tailwind CSS interface
+- **Modern UI**: Clean Next.js + Tailwind CSS interface with confidence indicators
 - **API-first design**: FastAPI with auto-generated OpenAPI docs
 - **Session-based operation**: No document history or persistence (fresh state on each restart)
 - **Educational focus**: Pure NLP components, no external databases required
@@ -176,12 +185,18 @@ npm run dev
 - **Weighted score fusion**: Configurable semantic/keyword weights
 - **Pure NLP approach**: No external databases - all Python-based NLP components
 
-### 🔮 Phase 3 (Future)
+### ✅ Phase 3 (Complete)
 - **Confidence scoring**: ROUGE-L citation overlap validation
-- **Extractive fallback**: Direct span highlighting with DistilBERT
-- **Evaluation harness**: Automated benchmarking on DocVQA/Natural Questions
+- **Extractive fallback**: DistilBERT span extraction for low-confidence answers
+- **Evaluation harness**: Standard QA metrics (EM, F1, Recall@K, nDCG)
+- **Ablation framework**: Systematic benchmarking and comparison
+- **Visual confidence**: UI indicators for answer quality
+
+### 🔮 Phase 4 (Future)
 - **Advanced query planning**: Coreference resolution for better multi-hop
 - **Production deployment**: Vercel + Railway with caching
+- **Model fine-tuning**: Domain-specific QA improvements
+- **Active learning**: User feedback integration
 
 ---
 
@@ -204,11 +219,16 @@ This project demonstrates multiple NLP techniques:
 10. **Multi-hop reasoning** (clause detection and sequential retrieval)
 11. **Hybrid score fusion** (weighted combination of semantic + keyword signals)
 
-### Phase 3 Components (Planned)
-- Confidence scoring (ROUGE-L overlap)
-- Extractive QA fallback
+### Phase 3 Components (Implemented)
+12. **Confidence scoring** (ROUGE-L citation overlap validation)
+13. **Extractive QA** (DistilBERT span extraction)
+14. **Evaluation metrics** (EM, F1, Recall@K, nDCG, MRR)
+15. **Benchmarking framework** (ablation studies, comparison)
+
+### Phase 4 Components (Planned)
 - Coreference resolution
 - Advanced query decomposition
+- Domain-specific fine-tuning
 
 ---
 
@@ -240,9 +260,10 @@ This project demonstrates multiple NLP techniques:
 ## Documentation
 
 - **`docs/NO_HISTORY_DESIGN.md`**: ⚠️ **READ FIRST** - Why documents don't persist (intentional design)
-- **`docs/PHASE2.md`**: Complete Phase 2 technical documentation
+- **`docs/PHASE3.md`**: Complete Phase 3 technical documentation (confidence, evaluation)
+- **`docs/PHASE2.md`**: Complete Phase 2 technical documentation (hybrid retrieval)
 - **`docs/PHASE2_TESTING.md`**: Phase 2 testing procedures
-- **`docs/SETUP.md`**: Detailed setup guide for both phases
+- **`docs/SETUP.md`**: Detailed setup guide for all phases
 - **`docs/phase1-prd.md`**: Comprehensive PRD with architecture, API specs, testing
 - **`project-proposal.md`**: Academic project proposal
 
@@ -262,5 +283,5 @@ Academic project for COMP 4750. All rights reserved.
 
 ---
 
-**Last Updated:** November 24, 2025  
-**Version:** 2.0.0 (Phase 2 Complete)
+**Last Updated:** November 27, 2025  
+**Version:** 3.0.0 (Phase 3 Complete)

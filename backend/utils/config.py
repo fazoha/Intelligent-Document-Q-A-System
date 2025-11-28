@@ -63,6 +63,12 @@ class Config:
     YAKE_MAX_KEYWORDS: int = int(os.getenv("YAKE_MAX_KEYWORDS", "10"))
     YAKE_NGRAM_SIZE: int = int(os.getenv("YAKE_NGRAM_SIZE", "3"))
     
+    # Phase 3: Confidence scoring and extractive fallback
+    CONFIDENCE_THRESHOLD: float = float(os.getenv("CONFIDENCE_THRESHOLD", "0.4"))
+    ENABLE_EXTRACTIVE_FALLBACK: bool = os.getenv("ENABLE_EXTRACTIVE_FALLBACK", "true").lower() == "true"
+    EXTRACTIVE_MODEL: str = os.getenv("EXTRACTIVE_MODEL", "distilbert-base-uncased-distilled-squad")
+    MAX_REGENERATION_ATTEMPTS: int = int(os.getenv("MAX_REGENERATION_ATTEMPTS", "1"))
+    
     @classmethod
     def validate(cls) -> None:
         """

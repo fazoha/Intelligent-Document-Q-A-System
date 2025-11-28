@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import CitationCard from "./CitationCard";
-import { Sparkles, Clock, BookOpen, FileText } from "lucide-react";
+import { Sparkles, Clock, BookOpen, FileText, Shield, Zap, AlertTriangle, CheckCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -21,16 +21,60 @@ interface AnswerDisplayProps {
   answer: string;
   citations: Citation[];
   queryTime?: number;
+  // Phase 3: Confidence scoring
+  confidenceScore?: number;
+  confidenceLevel?: "high" | "medium" | "low";
+  answerType?: "generative" | "extractive";
 }
 
 export default function AnswerDisplay({
   answer,
   citations,
   queryTime,
+  confidenceScore,
+  confidenceLevel,
+  answerType,
 }: AnswerDisplayProps) {
   const citationRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   if (!answer) return null;
+
+  // Confidence indicator helper
+  const getConfidenceConfig = () => {
+    switch (confidenceLevel) {
+      case "high":
+        return {
+          color: "text-emerald-400",
+          bgColor: "bg-emerald-500/10",
+          borderColor: "border-emerald-500/30",
+          icon: CheckCircle,
+          label: "High Confidence",
+          description: "Answer is well-supported by source citations"
+        };
+      case "medium":
+        return {
+          color: "text-amber-400",
+          bgColor: "bg-amber-500/10",
+          borderColor: "border-amber-500/30",
+          icon: AlertTriangle,
+          label: "Medium Confidence",
+          description: "Answer is partially supported by citations"
+        };
+      case "low":
+        return {
+          color: "text-rose-400",
+          bgColor: "bg-rose-500/10",
+          borderColor: "border-rose-500/30",
+          icon: AlertTriangle,
+          label: "Low Confidence",
+          description: "Answer may not be fully supported by sources"
+        };
+      default:
+        return null;
+    }
+  };
+
+  const confidenceConfig = getConfidenceConfig();
 
   // 1. Normalize formatting artifacts that GPT might emit (e.g., stray "- ." bullets, extra blank lines)
   const normalizedAnswer = answer
@@ -62,15 +106,61 @@ export default function AnswerDisplay({
       {/* Answer Header */}
       <div className="flex items-center justify-between text-primary/80 px-1">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4" />
-          <h3 className="text-xs font-bold uppercase tracking-widest">AI Synthesis</h3>
+          {answerType === "extractive" ? (
+            <>
+              <Zap className="w-4 h-4" />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Extracted Answer</h3>
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium">
+                Direct Quote
+              </span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              <h3 className="text-xs font-bold uppercase tracking-widest">AI Synthesis</h3>
+            </>
+          )}
         </div>
-        {queryTime && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono bg-secondary/50 px-2 py-1 rounded-full">
-            <Clock className="w-3 h-3" />
-            {(queryTime / 1000).toFixed(2)}s
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {/* Confidence Indicator */}
+          {confidenceConfig && confidenceScore !== undefined && (
+            <Tooltip
+              side="bottom"
+              content={
+                <div className="p-2 space-y-1.5 max-w-[200px]">
+                  <div className="font-semibold text-xs">{confidenceConfig.label}</div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {confidenceConfig.description}
+                  </p>
+                  <div className="pt-1 border-t border-border/50 mt-1">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground">Score</span>
+                      <span className={cn("font-mono font-medium", confidenceConfig.color)}>
+                        {(confidenceScore * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              }
+            >
+              <div className={cn(
+                "flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium border transition-all cursor-help",
+                confidenceConfig.bgColor,
+                confidenceConfig.borderColor,
+                confidenceConfig.color
+              )}>
+                <confidenceConfig.icon className="w-3 h-3" />
+                <span>{(confidenceScore * 100).toFixed(0)}%</span>
+              </div>
+            </Tooltip>
+          )}
+          {queryTime && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono bg-secondary/50 px-2 py-1 rounded-full">
+              <Clock className="w-3 h-3" />
+              {(queryTime / 1000).toFixed(2)}s
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Main Answer Content */}

@@ -1,19 +1,40 @@
 """
 Answer generation service using OpenAI GPT-5-mini.
+
+Phase 3 enhancements:
+- Confidence scoring using ROUGE-L
+- Extractive fallback for low-confidence answers
 """
 
 import re
-from typing import List, Tuple, Optional, Literal
+from typing import List, Tuple, Optional, Literal, Dict, Any
+from dataclasses import dataclass
 from openai import OpenAI
 from models import ChunkMetadata, Citation
 from utils import config, app_logger
 
 ReasoningEffort = Literal["none", "low", "medium", "high"]
 VerbosityLevel = Literal["low", "medium", "high"]
+AnswerType = Literal["generative", "extractive"]
+
+
+@dataclass
+class GenerationResult:
+    """Result of answer generation with confidence scoring."""
+    answer: str
+    citations: List[Citation]
+    confidence_score: float
+    confidence_level: str
+    answer_type: AnswerType
+    extractive_span: Optional[Dict[str, Any]] = None
 
 
 class GPTAnswerGenerator:
-    """Generate answers using GPT-5-mini with retrieved context."""
+    """
+    Generate answers using GPT-5-mini with retrieved context.
+    
+    Phase 3: Includes confidence scoring and extractive fallback.
+    """
     
     def __init__(
         self,
@@ -25,6 +46,183 @@ class GPTAnswerGenerator:
         self.default_reasoning_effort = default_reasoning_effort
         self.default_text_verbosity = default_text_verbosity
         self.logger = app_logger
+        
+        # Phase 3: Initialize confidence scorer (lazy load extractive QA)
+        from services.confidence_service import ConfidenceScorer
+        self.confidence_scorer = ConfidenceScorer()
+        self._extractive_qa = None
+    
+    @property
+    def extractive_qa(self):
+        """Lazy load extractive QA service."""
+        if self._extractive_qa is None and config.ENABLE_EXTRACTIVE_FALLBACK:
+            from services.extractive_qa_service import ExtractiveQAService
+            self._extractive_qa = ExtractiveQAService()
+        return self._extractive_qa
+    
+    def generate_with_confidence(
+        self,
+        query: str,
+        chunks: List[ChunkMetadata],
+        reasoning_effort: Optional[ReasoningEffort] = None,
+        text_verbosity: Optional[VerbosityLevel] = None
+    ) -> GenerationResult:
+        """
+        Generate an answer with confidence scoring and optional extractive fallback.
+        
+        Phase 3 Workflow:
+        1. Generate answer with GPT-5-mini
+        2. Compute confidence score using ROUGE-L
+        3. If confidence < threshold, try extractive fallback
+        4. Return best answer with confidence info
+        
+        Args:
+            query: User's question
+            chunks: Retrieved context chunks
+            reasoning_effort: Override reasoning effort level
+            text_verbosity: Override verbosity level
+            
+        Returns:
+            GenerationResult with answer, citations, and confidence info
+        """
+        if not chunks:
+            return GenerationResult(
+                answer="I don't have any documents indexed to answer this question. Please upload a document first.",
+                citations=[],
+                confidence_score=0.0,
+                confidence_level="low",
+                answer_type="generative"
+            )
+        
+        # Step 1: Generate answer with GPT-5-mini
+        answer, citations = self.generate(
+            query=query,
+            chunks=chunks,
+            reasoning_effort=reasoning_effort,
+            text_verbosity=text_verbosity
+        )
+        
+        # Step 2: Compute confidence score
+        confidence_score = self.confidence_scorer.compute_confidence_score(
+            answer=answer,
+            citations=citations
+        )
+        confidence_level = self.confidence_scorer.get_confidence_level(confidence_score)
+        
+        self.logger.info(
+            f"Generative answer confidence: {confidence_score:.3f} ({confidence_level})"
+        )
+        
+        # Step 3: Check if extractive fallback is needed
+        if (
+            confidence_score < config.CONFIDENCE_THRESHOLD
+            and config.ENABLE_EXTRACTIVE_FALLBACK
+            and self.extractive_qa is not None
+        ):
+            self.logger.info(
+                f"Confidence {confidence_score:.3f} < threshold {config.CONFIDENCE_THRESHOLD}, "
+                "trying extractive fallback..."
+            )
+            
+            # Try extractive QA
+            extractive_result = self._try_extractive_fallback(query, chunks)
+            
+            if extractive_result is not None:
+                ext_answer, ext_score, ext_span = extractive_result
+                
+                # Use extractive if it has better confidence
+                if ext_score > confidence_score:
+                    self.logger.info(
+                        f"Using extractive answer (score={ext_score:.3f} > {confidence_score:.3f})"
+                    )
+                    
+                    # Create citation from the source chunk
+                    ext_citations = self._create_extractive_citations(chunks, ext_span)
+                    
+                    return GenerationResult(
+                        answer=ext_answer,
+                        citations=ext_citations,
+                        confidence_score=ext_score,
+                        confidence_level=self.confidence_scorer.get_confidence_level(ext_score),
+                        answer_type="extractive",
+                        extractive_span=ext_span
+                    )
+                else:
+                    self.logger.info(
+                        f"Keeping generative answer (extractive score {ext_score:.3f} <= {confidence_score:.3f})"
+                    )
+        
+        # Return generative result
+        return GenerationResult(
+            answer=answer,
+            citations=citations,
+            confidence_score=confidence_score,
+            confidence_level=confidence_level,
+            answer_type="generative"
+        )
+    
+    def _try_extractive_fallback(
+        self,
+        query: str,
+        chunks: List[ChunkMetadata]
+    ) -> Optional[Tuple[str, float, Optional[Dict[str, Any]]]]:
+        """
+        Try extractive QA as fallback.
+        
+        Args:
+            query: User's question
+            chunks: Retrieved context chunks
+            
+        Returns:
+            Tuple of (answer, confidence, span_info) or None if failed
+        """
+        try:
+            answer, score, span_info = self.extractive_qa.extract_answer(
+                question=query,
+                chunks=chunks
+            )
+            
+            # Validate the extractive answer
+            if answer and len(answer.strip()) > 0 and score > 0.01:
+                return (answer, score, span_info)
+            
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"Extractive fallback failed: {e}")
+            return None
+    
+    def _create_extractive_citations(
+        self,
+        chunks: List[ChunkMetadata],
+        span_info: Optional[Dict[str, Any]]
+    ) -> List[Citation]:
+        """
+        Create citations for extractive answer.
+        
+        Args:
+            chunks: Source chunks
+            span_info: Span information from extraction
+            
+        Returns:
+            List of Citation objects
+        """
+        # Use the first chunk as the citation source (most relevant)
+        if not chunks:
+            return []
+        
+        chunk = chunks[0]
+        
+        citation = Citation(
+            chunk_id=chunk.chunk_id,
+            text=chunk.text,
+            page=chunk.page,
+            bbox=chunk.bbox,
+            doc_name=chunk.doc_name,
+            block_type=chunk.block_type
+        )
+        
+        return [citation]
     
     def generate(
         self,
@@ -34,7 +232,7 @@ class GPTAnswerGenerator:
         text_verbosity: Optional[VerbosityLevel] = None
     ) -> Tuple[str, List[Citation]]:
         """
-        Generate an answer with citations.
+        Generate an answer with citations (original method for backward compatibility).
         
         Args:
             query: User's question

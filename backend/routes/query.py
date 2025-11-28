@@ -2,24 +2,26 @@
 Query and answer generation endpoints.
 
 Phase 2 enhancements:
-- Hybrid retrieval (dense + BM25 + keywords)
+- Hybrid retrieval (dense + keywords)
 - Cross-encoder reranking
 - Multi-hop query planning
+
+Phase 3 enhancements:
+- Confidence scoring (ROUGE-L)
+- Extractive fallback for low-confidence answers
 """
 
 import time
 from fastapi import APIRouter, HTTPException
 from typing import Dict, Any, List
 
-from models import QueryRequest, QueryResponse, Citation, ChunkMetadata
+from models import QueryRequest, QueryResponse, ChunkMetadata
 from services import (
     # Phase 1 services
-    OpenAIEmbedder,
-    UpstashVectorStore,
     GPTAnswerGenerator,
     # Phase 2 services
     HybridRetriever,
-    QueryPlanner
+    QueryPlanner,
 )
 from utils import app_logger, config
 
@@ -33,15 +35,19 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
     
     Phase 2 Workflow:
     1. Query planning: Analyze query for multi-hop requirements
-    2. Hybrid retrieval: Combine dense + BM25 + keyword matching
+    2. Hybrid retrieval: Combine dense + keyword matching
     3. Reranking: Use cross-encoder to rerank candidates
     4. Answer generation: GPT-5-mini with context
     5. Citation extraction
+    
+    Phase 3 Enhancements:
+    6. Confidence scoring: ROUGE-L overlap validation
+    7. Extractive fallback: Direct span extraction for low-confidence answers
     """
     logger = app_logger
     start_time = time.time()
     
-    logger.info(f"Received query (Phase 2): {request.query}")
+    logger.info(f"Received query (Phase 3): {request.query}")
     
     try:
         # Phase 2: Initialize query planner
@@ -80,28 +86,37 @@ async def query_documents(request: QueryRequest) -> QueryResponse:
                 answer="I don't have any documents indexed to answer this question. Please upload a document first.",
                 citations=[],
                 query_time_ms=int((time.time() - start_time) * 1000),
-                retrieved_chunks=0
+                retrieved_chunks=0,
+                confidence_score=0.0,
+                confidence_level="low",
+                answer_type="generative"
             )
         
         logger.info(f"Retrieved {len(chunks)} chunks after hybrid retrieval + reranking")
         
-        # Step 3: Generate answer
+        # Step 3: Generate answer with confidence scoring (Phase 3)
         answer_generator = GPTAnswerGenerator()
-        answer, citations = answer_generator.generate(request.query, chunks)
+        result = answer_generator.generate_with_confidence(request.query, chunks)
         
         # Calculate query time
         query_time_ms = int((time.time() - start_time) * 1000)
         
         logger.info(
-            f"Query completed in {query_time_ms}ms (Phase 2). "
-            f"Answer length: {len(answer)} chars, Citations: {len(citations)}"
+            f"Query completed in {query_time_ms}ms (Phase 3). "
+            f"Answer type: {result.answer_type}, "
+            f"Confidence: {result.confidence_score:.3f} ({result.confidence_level}), "
+            f"Answer length: {len(result.answer)} chars, Citations: {len(result.citations)}"
         )
         
         return QueryResponse(
-            answer=answer,
-            citations=citations,
+            answer=result.answer,
+            citations=result.citations,
             query_time_ms=query_time_ms,
-            retrieved_chunks=len(chunks)
+            retrieved_chunks=len(chunks),
+            confidence_score=result.confidence_score,
+            confidence_level=result.confidence_level,
+            answer_type=result.answer_type,
+            extractive_span=result.extractive_span
         )
     
     except Exception as e:

@@ -32,6 +32,15 @@ interface QueryResponse {
   citations: Citation[];
   query_time_ms: number;
   retrieved_chunks: number;
+  // Phase 3: Confidence scoring
+  confidence_score?: number;
+  confidence_level?: "high" | "medium" | "low";
+  answer_type?: "generative" | "extractive";
+  extractive_span?: {
+    start_char: number;
+    end_char: number;
+    chunk_id?: string;
+  } | null;
 }
 
 export default function HomePage() {
@@ -40,6 +49,10 @@ export default function HomePage() {
   const [answer, setAnswer] = useState("");
   const [citations, setCitations] = useState<Citation[]>([]);
   const [queryTime, setQueryTime] = useState<number | undefined>();
+  // Phase 3: Confidence state
+  const [confidenceScore, setConfidenceScore] = useState<number | undefined>();
+  const [confidenceLevel, setConfidenceLevel] = useState<"high" | "medium" | "low" | undefined>();
+  const [answerType, setAnswerType] = useState<"generative" | "extractive" | undefined>();
 
   // Fetch documents on mount
   useEffect(() => {
@@ -82,6 +95,9 @@ export default function HomePage() {
     setAnswer("");
     setCitations([]);
     setQueryTime(undefined);
+    setConfidenceScore(undefined);
+    setConfidenceLevel(undefined);
+    setAnswerType(undefined);
 
     try {
       const response = await fetch("http://localhost:8000/api/query", {
@@ -101,6 +117,10 @@ export default function HomePage() {
       setAnswer(data.answer);
       setCitations(data.citations);
       setQueryTime(data.query_time_ms);
+      // Phase 3: Set confidence data
+      setConfidenceScore(data.confidence_score);
+      setConfidenceLevel(data.confidence_level);
+      setAnswerType(data.answer_type);
     } catch (error: any) {
       setAnswer(`Error: ${error.message}`);
       setCitations([]);
@@ -226,6 +246,9 @@ export default function HomePage() {
                     answer={answer}
                     citations={citations}
                     queryTime={queryTime}
+                    confidenceScore={confidenceScore}
+                    confidenceLevel={confidenceLevel}
+                    answerType={answerType}
                   />
                 )}
                 
